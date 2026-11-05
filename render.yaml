@@ -1,0 +1,48 @@
+# Blueprint do Render: API + worker + Postgres + Redis (Key Value).
+# O frontend vai para a Vercel (apps/web/vercel.json).
+databases:
+  - name: speedtime-db
+    plan: basic-256mb
+    databaseName: speedtime
+
+services:
+  - type: keyvalue
+    name: speedtime-redis
+    plan: starter
+    maxmemoryPolicy: noeviction   # obrigatório para BullMQ
+    ipAllowList: []
+
+  - type: web
+    name: speedtime-api
+    runtime: node
+    rootDir: .
+    buildCommand: npm ci && npm run migrate
+    startCommand: npm run start -w apps/server
+    healthCheckPath: /health
+    envVars: &env
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: { name: speedtime-db, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: speedtime-redis, property: connectionString }
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WEB_ORIGIN
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+
+  - type: worker
+    name: speedtime-worker
+    runtime: node
+    rootDir: .
+    buildCommand: npm ci
+    startCommand: npm run start:worker -w apps/server
+    envVars: *env

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": { "builder": "NIXPACKS", "buildCommand": "npm ci" },
+  "deploy": {
+    "preDeployCommand": "npm run migrate",
+    "startCommand": "npm run start -w apps/server",
+    "healthcheckPath": "/health",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

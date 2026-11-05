@@ -1,0 +1,10 @@
+{
+  "name": "SpeedTime",
+  "short_name": "SpeedTime",
+  "description": "Monitor de preços com alertas automáticos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#111827",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
