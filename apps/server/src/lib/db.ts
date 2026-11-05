@@ -7,11 +7,24 @@ pg.types.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v)));
 // BIGINT -> number
 pg.types.setTypeParser(20, (v) => parseInt(v, 10));
 
-export const pool = new pg.Pool({
-  connectionString: config.DATABASE_URL,
-  max: 10,
-  ssl: /sslmode=require/.test(config.DATABASE_URL) ? { rejectUnauthorized: false } : undefined,
-});
+/**
+ * Bancos gerenciados (Supabase, Neon, Render) exigem SSL; o local não.
+ * SSL é ligado para qualquer host remoto, a menos que a URL peça sslmode=disable.
+ * Parâmetros de SSL da URL são removidos para não conflitarem com a opção abaixo.
+ */
+export function poolOptions(databaseUrl: string): pg.PoolConfig {
+  const url = new URL(databaseUrl);
+  const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname) || !url.hostname.includes('.');
+  const disabled = url.searchParams.get('sslmode') === 'disable';
+  for (const k of ['sslmode', 'channel_binding', 'sslrootcert', 'pgbouncer']) url.searchParams.delete(k);
+  return {
+    connectionString: url.toString(),
+    max: 10,
+    ssl: local || disabled ? undefined : { rejectUnauthorized: false },
+  };
+}
+
+export const pool = new pg.Pool(poolOptions(config.DATABASE_URL));
 pool.on('error', (err) => logger.error({ err }, 'erro no pool do Postgres'));
 
 export async function query<T extends pg.QueryResultRow = any>(text: string, params: unknown[] = []) {

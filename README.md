@@ -98,19 +98,33 @@ npm test           # adaptadores (com fixtures), anti-spam, parser de preço, cl
 npm run typecheck
 ```
 
-## Deploy (o jeito simples: Render, um único serviço)
+## Deploy gratuito (Render + Supabase)
 
-O SpeedTime roda como **um serviço só**: o mesmo endereço mostra o site, responde a API e roda o worker 24/7. As tabelas do banco, o segredo de login e as chaves do Web Push são criados automaticamente, então não é preciso preencher variáveis.
+O SpeedTime roda como **um serviço só**: o mesmo endereço mostra o site, responde a API e roda o worker 24/7. As tabelas, o segredo de login e as chaves do Web Push são criados automaticamente.
 
-1. Crie uma conta em https://render.com usando **Sign in with GitHub**.
-2. No painel, clique em **New +** → **Blueprint**.
-3. Escolha o repositório **speedtime** (se ele não aparecer, clique em *Configure GitHub* e dê acesso a ele).
-4. O Render lê o `render.yaml` e mostra o que vai criar: **speedtime** (o app), **speedtime-db** (Postgres) e **speedtime-redis**. Clique em **Apply** / **Deploy Blueprint**.
-5. Espere o deploy ficar **Live** (cerca de 5 minutos). Abra o endereço `https://speedtime-xxxx.onrender.com` que aparece no serviço **speedtime** e crie sua conta.
+**Parte 1: banco de dados no Supabase (grátis)**
+1. Entre em https://supabase.com → **Start your project** → faça login com o GitHub.
+2. Clique em **New project**. Escolha um nome (ex.: `speedtime`) e uma **senha só com letras e números** (anote), na região **South America (São Paulo)**. Depois clique em **Create new project** e espere 1 a 2 minutos.
+3. No topo do projeto, clique em **Connect**. Na lista, procure **Session pooler** e copie a URI, que se parece com
+   `postgresql://postgres.abcd1234:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`.
+4. Troque `[YOUR-PASSWORD]` pela senha que você criou (sem os colchetes).
 
-**Custo:** o monitoramento 24/7 precisa de um servidor sempre ligado. O `render.yaml` usa o app no plano *Starter* (US$ 7/mês) e o Postgres *Basic 256 MB* (cerca de US$ 6/mês), com o Redis grátis. Os planos grátis do app e do banco não servem: o app "dorme" após 15 minutos sem acesso (e o monitoramento para junto), e o banco grátis expira em 30 dias.
+**Parte 2: app no Render (grátis)**
+1. Entre em https://render.com com **Sign in with GitHub**.
+2. Clique em **New +** → **Blueprint** e escolha o repositório **speedtime**.
+3. O Render mostra **speedtime** e **speedtime-redis** e pede **DATABASE_URL**: cole a URI do Supabase da parte 1.
+4. Clique em **Deploy Blueprint** e espere ficar **Live** (cerca de 5 minutos).
+5. Abra o endereço `https://speedtime-xxxx.onrender.com` e crie sua conta.
 
-Depois disso, o deploy da Vercel não é mais necessário: use o endereço do Render.
+**Limitações do plano gratuito**
+- O plano Free do Render desliga o app após 15 minutos sem acessos. Para evitar isso, o próprio app acessa o seu endereço a cada 10 minutos (`KEEP_ALIVE`). Um único serviço cabe nas 750 h/mês gratuitas.
+- Se o Render reiniciar o servidor e o app ficar fora do ar, ele volta no próximo acesso, o que leva cerca de 1 minuto. Para garantir, crie um monitor grátis em https://cron-job.org ou https://uptimerobot.com que acesse `https://speedtime-xxxx.onrender.com/health` a cada 10 minutos.
+- O Supabase Free pausa projetos sem atividade por 7 dias. Como o worker consulta o banco a cada minuto, isso não deve acontecer enquanto o app estiver no ar.
+- O Redis Free do Render não guarda dados em disco. Só a fila de tarefas fica nele, e ela é recriada sozinha.
+- Os limites dos planos gratuitos podem mudar. Confira nos sites do Render e do Supabase.
+
+### Versão paga (mais robusta, ~US$ 13/mês)
+Use **New +** → **Blueprint** e, em **Blueprint Path**, informe `render.paid.yaml`. Ele cria o app no plano Starter (sempre ligado) e o Postgres no próprio Render, sem precisar do Supabase.
 
 ### Opcional: e-mail e outras lojas
 No Render, abra o serviço **speedtime** → **Environment** e adicione só o que quiser usar (veja `apps/server/.env.example`): `RESEND_API_KEY` para alertas por e-mail, `TELEGRAM_*` para o Telegram, e as chaves de afiliado da Amazon, Shopee e AliExpress.
@@ -120,8 +134,9 @@ No Render, abra o serviço **speedtime** → **Environment** e adicione só o qu
 - **Worker em processo separado** (para escalar): rode `npm run start:worker -w apps/server` em outro serviço e deixe `RUN_WORKER=false` na API.
 - **Railway:** crie Postgres e Redis, um serviço a partir do repositório com `npm ci --include=dev && npm run build` e `npm start`, e defina `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `RUN_WORKER=true` e `PUBLIC_URL` (a URL pública).
 
-### Problema comum: "Erro 404" / "Servidor indisponível" ao entrar
-Aparece quando o site está publicado **sem** a API, por exemplo só o frontend na Vercel. Use o deploy do Render acima, que publica tudo junto.
+### Problemas comuns
+- **"Erro 404" / "Servidor indisponível" ao entrar:** o site foi publicado **sem** a API, por exemplo só o frontend na Vercel. Use o deploy do Render acima, que publica tudo junto.
+- **Deploy falha com erro de conexão com o banco:** confira se você usou a URI do **Session pooler** (porta 5432, host `…pooler.supabase.com`) e se trocou `[YOUR-PASSWORD]` pela senha.
 
 ### Telegram (opcional)
 1. Crie um bot com o @BotFather e defina `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` e `TELEGRAM_WEBHOOK_SECRET`.

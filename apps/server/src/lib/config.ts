@@ -20,6 +20,9 @@ const schema = z.object({
   RUN_WORKER: bool('false'),
   /** true = aplica as migrações do banco ao iniciar a API. */
   AUTO_MIGRATE: bool('true'),
+  /** true = o app acessa a própria URL pública a cada 10 min para não "dormir" em planos gratuitos. */
+  KEEP_ALIVE: bool('false'),
+  PUBLIC_URL: z.string().optional().default(publicUrl ?? ''),
 
   // Coleta
   FETCH_MIN_HOST_INTERVAL_MS: z.coerce.number().default(5000),

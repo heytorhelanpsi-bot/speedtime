@@ -1,0 +1,36 @@
+# Variante PAGA (sempre ligada, banco no próprio Render, ~US$ 13/mês).
+# Para usar: New → Blueprint → em "Blueprint Path" informe render.paid.yaml.
+# Nenhuma variável precisa ser preenchida: tabelas, segredo de login e chaves do
+# Web Push são criados automaticamente na primeira inicialização.
+databases:
+  - name: speedtime-db
+    plan: basic-256mb
+    databaseName: speedtime
+
+services:
+  - type: keyvalue
+    name: speedtime-redis
+    plan: free
+    maxmemoryPolicy: noeviction   # obrigatório para o BullMQ
+    ipAllowList: []               # acesso só pela rede interna do Render
+
+  - type: web
+    name: speedtime
+    runtime: node
+    plan: starter                 # o plano "free" dorme após 15 min sem acesso e pararia o monitoramento 24/7
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: RUN_WORKER
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase: { name: speedtime-db, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: speedtime-redis, property: connectionString }
+      - key: JWT_SECRET
+        generateValue: true

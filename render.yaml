@@ -1,12 +1,12 @@
-# Deploy em 1 clique no Render (New → Blueprint → escolha este repositório).
-# Cria: o app SpeedTime (site + API + worker num único serviço), o banco Postgres e o Redis.
-# Nenhuma variável precisa ser preenchida à mão: tabelas, segredo de login e chaves do
-# Web Push são criados automaticamente na primeira inicialização.
-databases:
-  - name: speedtime-db
-    plan: basic-256mb
-    databaseName: speedtime
-
+# Deploy GRATUITO no Render (New → Blueprint → escolha este repositório).
+#
+# Cria o app SpeedTime (site + API + worker num único serviço, plano Free) e o Redis (Free).
+# O banco Postgres fica no Supabase (plano gratuito): durante a criação, o Render pede
+# o valor de DATABASE_URL — cole a "Session pooler" connection string do Supabase.
+#
+# KEEP_ALIVE=true faz o app acessar a própria URL a cada 10 min, para o plano Free
+# não "dormir" e o monitoramento continuar 24/7 (um serviço cabe nas 750 h/mês grátis).
+# Tabelas, segredo de login e chaves do Web Push são criados automaticamente.
 services:
   - type: keyvalue
     name: speedtime-redis
@@ -17,7 +17,7 @@ services:
   - type: web
     name: speedtime
     runtime: node
-    plan: starter                 # o plano "free" dorme após 15 min sem acesso e pararia o monitoramento 24/7
+    plan: free
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
@@ -28,8 +28,10 @@ services:
         value: "22"
       - key: RUN_WORKER
         value: "true"
+      - key: KEEP_ALIVE
+        value: "true"
       - key: DATABASE_URL
-        fromDatabase: { name: speedtime-db, property: connectionString }
+        sync: false               # o Render pede este valor ao criar: cole a URL do Supabase
       - key: REDIS_URL
         fromService: { type: keyvalue, name: speedtime-redis, property: connectionString }
       - key: JWT_SECRET
