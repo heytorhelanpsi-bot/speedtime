@@ -98,28 +98,30 @@ npm test           # adaptadores (com fixtures), anti-spam, parser de preço, cl
 npm run typecheck
 ```
 
-## Deploy
+## Deploy (o jeito simples: Render, um único serviço)
 
-### Frontend na Vercel
-1. Importe o repositório e defina **Root Directory** = `apps/web`.
-2. Em `apps/web/vercel.json`, troque `https://SUA-API.up.railway.app` pela URL da sua API. O rewrite deixa `/api` na mesma origem.
-   Outra opção: defina `VITE_API_URL=https://sua-api…` e libere essa origem em `WEB_ORIGIN` na API.
+O SpeedTime roda como **um serviço só**: o mesmo endereço mostra o site, responde a API e roda o worker 24/7. As tabelas do banco, o segredo de login e as chaves do Web Push são criados automaticamente, então não é preciso preencher variáveis.
 
-### API e worker no Railway
-1. Crie um projeto e adicione **PostgreSQL** e **Redis**.
-2. Serviço **api**: aponte para o repositório. O `railway.json` já roda as migrações e inicia a API. Defina as variáveis de `apps/server/.env.example` (use `${{Postgres.DATABASE_URL}}` e `${{Redis.REDIS_URL}}`).
-3. Serviço **worker**: mesmo repositório, com Start Command `npm run start:worker -w apps/server`, sem healthcheck e as mesmas variáveis.
-4. Ajuste `WEB_ORIGIN` e `APP_URL` para o domínio da Vercel.
+1. Crie uma conta em https://render.com usando **Sign in with GitHub**.
+2. No painel, clique em **New +** → **Blueprint**.
+3. Escolha o repositório **speedtime** (se ele não aparecer, clique em *Configure GitHub* e dê acesso a ele).
+4. O Render lê o `render.yaml` e mostra o que vai criar: **speedtime** (o app), **speedtime-db** (Postgres) e **speedtime-redis**. Clique em **Apply** / **Deploy Blueprint**.
+5. Espere o deploy ficar **Live** (cerca de 5 minutos). Abra o endereço `https://speedtime-xxxx.onrender.com` que aparece no serviço **speedtime** e crie sua conta.
 
-### Ou no Render
-Use o `render.yaml` (Blueprint). Ele cria a API, o worker, o Postgres e o Redis com `noeviction`, que o BullMQ exige.
+**Custo:** o monitoramento 24/7 precisa de um servidor sempre ligado. O `render.yaml` usa o app no plano *Starter* (US$ 7/mês) e o Postgres *Basic 256 MB* (cerca de US$ 6/mês), com o Redis grátis. Os planos grátis do app e do banco não servem: o app "dorme" após 15 minutos sem acesso (e o monitoramento para junto), e o banco grátis expira em 30 dias.
+
+Depois disso, o deploy da Vercel não é mais necessário: use o endereço do Render.
+
+### Opcional: e-mail e outras lojas
+No Render, abra o serviço **speedtime** → **Environment** e adicione só o que quiser usar (veja `apps/server/.env.example`): `RESEND_API_KEY` para alertas por e-mail, `TELEGRAM_*` para o Telegram, e as chaves de afiliado da Amazon, Shopee e AliExpress.
+
+### Alternativas avançadas
+- **Frontend na Vercel e API separada:** use `apps/web/vercel.json` (troque `SUA-API` pela URL da API) ou defina `VITE_API_URL` e coloque o domínio da Vercel em `WEB_ORIGIN`.
+- **Worker em processo separado** (para escalar): rode `npm run start:worker -w apps/server` em outro serviço e deixe `RUN_WORKER=false` na API.
+- **Railway:** crie Postgres e Redis, um serviço a partir do repositório com `npm ci --include=dev && npm run build` e `npm start`, e defina `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `RUN_WORKER=true` e `PUBLIC_URL` (a URL pública).
 
 ### Problema comum: "Erro 404" / "Servidor indisponível" ao entrar
-A Vercel publica **só o frontend**. Login, listas e alertas dependem da API e do worker, que precisam estar publicados (Railway ou Render, com Postgres e Redis). Confira:
-1. Abra `https://SUA-API/health` no navegador. Ele deve responder `{"ok":true}`.
-2. Em `apps/web/vercel.json`, o rewrite de `/api` deve apontar para essa URL (e não para o `SUA-API` de exemplo). Faça um novo deploy na Vercel depois de mudar.
-   Alternativa: defina `VITE_API_URL` na Vercel e coloque o domínio da Vercel em `WEB_ORIGIN` na API.
-3. Na Vercel, o **Root Directory** precisa ser `apps/web`, senão o `vercel.json` é ignorado.
+Aparece quando o site está publicado **sem** a API, por exemplo só o frontend na Vercel. Use o deploy do Render acima, que publica tudo junto.
 
 ### Telegram (opcional)
 1. Crie um bot com o @BotFather e defina `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` e `TELEGRAM_WEBHOOK_SECRET`.

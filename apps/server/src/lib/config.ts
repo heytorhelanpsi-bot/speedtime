@@ -2,6 +2,10 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 const optional = z.string().trim().min(1).optional().catch(undefined);
+const bool = (def: 'true' | 'false') => z.enum(['true', 'false']).default(def).transform((v) => v === 'true');
+
+// No Render, RENDER_EXTERNAL_URL é a URL pública do serviço (ex.: https://speedtime.onrender.com)
+const publicUrl = process.env.RENDER_EXTERNAL_URL ?? process.env.PUBLIC_URL;
 
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
@@ -10,14 +14,18 @@ const schema = z.object({
   DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/speedtime'),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   JWT_SECRET: z.string().min(16).default('dev-secret-change-me-please'),
-  WEB_ORIGIN: z.string().default('http://localhost:5173'),
-  APP_URL: z.string().default('http://localhost:5173'),
+  WEB_ORIGIN: z.string().default(publicUrl ? `${publicUrl},http://localhost:5173` : 'http://localhost:5173'),
+  APP_URL: z.string().default(publicUrl ?? 'http://localhost:5173'),
+  /** true = o processo da API também roda o worker (deploy com um único serviço). */
+  RUN_WORKER: bool('false'),
+  /** true = aplica as migrações do banco ao iniciar a API. */
+  AUTO_MIGRATE: bool('true'),
 
   // Coleta
   FETCH_MIN_HOST_INTERVAL_MS: z.coerce.number().default(5000),
   FETCH_CACHE_TTL_S: z.coerce.number().default(300),
   FETCH_TIMEOUT_MS: z.coerce.number().default(15000),
-  FETCH_RESPECT_ROBOTS: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  FETCH_RESPECT_ROBOTS: bool('true'),
   WORKER_CONCURRENCY: z.coerce.number().default(5),
   ALERT_REARM_HYSTERESIS: z.coerce.number().default(0.005),
 

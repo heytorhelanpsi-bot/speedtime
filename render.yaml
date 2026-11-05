@@ -1,5 +1,7 @@
-# Blueprint do Render: API + worker + Postgres + Redis (Key Value).
-# O frontend vai para a Vercel (apps/web/vercel.json).
+# Deploy em 1 clique no Render (New → Blueprint → escolha este repositório).
+# Cria: o app SpeedTime (site + API + worker num único serviço), o banco Postgres e o Redis.
+# Nenhuma variável precisa ser preenchida à mão: tabelas, segredo de login e chaves do
+# Web Push são criados automaticamente na primeira inicialização.
 databases:
   - name: speedtime-db
     plan: basic-256mb
@@ -8,41 +10,27 @@ databases:
 services:
   - type: keyvalue
     name: speedtime-redis
-    plan: starter
-    maxmemoryPolicy: noeviction   # obrigatório para BullMQ
-    ipAllowList: []
+    plan: free
+    maxmemoryPolicy: noeviction   # obrigatório para o BullMQ
+    ipAllowList: []               # acesso só pela rede interna do Render
 
   - type: web
-    name: speedtime-api
+    name: speedtime
     runtime: node
-    rootDir: .
-    buildCommand: npm ci && npm run migrate
-    startCommand: npm run start -w apps/server
+    plan: starter                 # o plano "free" dorme após 15 min sem acesso e pararia o monitoramento 24/7
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
     healthCheckPath: /health
-    envVars: &env
+    envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: RUN_WORKER
+        value: "true"
       - key: DATABASE_URL
         fromDatabase: { name: speedtime-db, property: connectionString }
       - key: REDIS_URL
         fromService: { type: keyvalue, name: speedtime-redis, property: connectionString }
       - key: JWT_SECRET
         generateValue: true
-      - key: WEB_ORIGIN
-        sync: false
-      - key: APP_URL
-        sync: false
-      - key: VAPID_PUBLIC_KEY
-        sync: false
-      - key: VAPID_PRIVATE_KEY
-        sync: false
-      - key: RESEND_API_KEY
-        sync: false
-
-  - type: worker
-    name: speedtime-worker
-    runtime: node
-    rootDir: .
-    buildCommand: npm ci
-    startCommand: npm run start:worker -w apps/server
-    envVars: *env

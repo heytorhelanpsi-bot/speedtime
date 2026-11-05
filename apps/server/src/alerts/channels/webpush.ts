@@ -1,16 +1,11 @@
 import webpush from 'web-push';
-import { config } from '../../lib/config.js';
+import { getVapid } from '../../lib/vapid.js';
 import { query } from '../../lib/db.js';
 import type { Logger } from '../../lib/logger.js';
 
-let ready = false;
+/** As chaves são preparadas em initVapid() ao iniciar a API/worker. */
 export function webPushConfigured() {
-  if (!config.VAPID_PUBLIC_KEY || !config.VAPID_PRIVATE_KEY) return false;
-  if (!ready) {
-    webpush.setVapidDetails(config.VAPID_SUBJECT, config.VAPID_PUBLIC_KEY, config.VAPID_PRIVATE_KEY);
-    ready = true;
-  }
-  return true;
+  return getVapid() !== null;
 }
 
 /** Envia para todas as assinaturas do usuário. Assinaturas expiradas (404/410) são removidas. */

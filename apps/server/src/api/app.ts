@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { describeStores } from '../adapters/index.js';
@@ -51,6 +54,25 @@ export function createApp() {
   app.use('/api/settings', requireAuth, settingsRouter);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
+
+  // Se o frontend já foi compilado (apps/web/dist), a própria API serve o site:
+  // um único endereço para tudo, sem CORS nem rewrite.
+  const webDist = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'web', 'dist');
+  if (existsSync(join(webDist, 'index.html'))) {
+    app.use(
+      express.static(webDist, {
+        index: false,
+        setHeaders: (res, path) => {
+          if (path.endsWith('sw.js') || path.endsWith('.html')) res.setHeader('cache-control', 'no-cache');
+          else if (path.includes(`${'/'}assets${'/'}`)) res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+        },
+      }),
+    );
+    app.get('*', (_req, res) => {
+      res.setHeader('cache-control', 'no-cache');
+      res.sendFile(join(webDist, 'index.html'));
+    });
+  }
   app.use(errorHandler);
   return app;
 }

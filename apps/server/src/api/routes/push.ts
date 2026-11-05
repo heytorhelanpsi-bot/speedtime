@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { config } from '../../lib/config.js';
+import { getVapid } from '../../lib/vapid.js';
 import { query } from '../../lib/db.js';
 import { requireAuth, type AuthedRequest } from '../auth.js';
 import { HttpError, h, parse } from '../http.js';
@@ -8,8 +8,9 @@ import { HttpError, h, parse } from '../http.js';
 export const pushRouter = Router();
 
 pushRouter.get('/vapid-public-key', (_req, res) => {
-  if (!config.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Web Push não configurado no servidor' });
-  res.json({ key: config.VAPID_PUBLIC_KEY });
+  const vapid = getVapid();
+  if (!vapid) return res.status(503).json({ error: 'Web Push não configurado no servidor' });
+  res.json({ key: vapid.publicKey });
 });
 
 const subscription = z.object({
@@ -21,7 +22,7 @@ pushRouter.post(
   '/subscribe',
   requireAuth,
   h(async (req: AuthedRequest, res) => {
-    if (!config.VAPID_PUBLIC_KEY) throw new HttpError(503, 'Web Push não configurado no servidor');
+    if (!getVapid()) throw new HttpError(503, 'Web Push não configurado no servidor');
     const s = parse(subscription, req.body);
     await query(
       `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent) VALUES ($1,$2,$3,$4,$5)
