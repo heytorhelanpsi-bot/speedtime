@@ -114,6 +114,13 @@ npm run typecheck
 ### Ou no Render
 Use o `render.yaml` (Blueprint). Ele cria a API, o worker, o Postgres e o Redis com `noeviction`, que o BullMQ exige.
 
+### Problema comum: "Erro 404" / "Servidor indisponível" ao entrar
+A Vercel publica **só o frontend**. Login, listas e alertas dependem da API e do worker, que precisam estar publicados (Railway ou Render, com Postgres e Redis). Confira:
+1. Abra `https://SUA-API/health` no navegador. Ele deve responder `{"ok":true}`.
+2. Em `apps/web/vercel.json`, o rewrite de `/api` deve apontar para essa URL (e não para o `SUA-API` de exemplo). Faça um novo deploy na Vercel depois de mudar.
+   Alternativa: defina `VITE_API_URL` na Vercel e coloque o domínio da Vercel em `WEB_ORIGIN` na API.
+3. Na Vercel, o **Root Directory** precisa ser `apps/web`, senão o `vercel.json` é ignorado.
+
 ### Telegram (opcional)
 1. Crie um bot com o @BotFather e defina `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` e `TELEGRAM_WEBHOOK_SECRET`.
 2. Registre o webhook:

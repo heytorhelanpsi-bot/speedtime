@@ -43,7 +43,14 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
   }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error ?? `Erro ${res.status}`);
+  if (!res.ok) {
+    // Resposta sem o JSON da nossa API: o frontend não está conectado ao servidor
+    // (API não publicada, ou vercel.json / VITE_API_URL apontando para o lugar errado).
+    if (!data.error && (res.status === 404 || res.status >= 502)) {
+      throw new ApiError(res.status, `Servidor indisponível (HTTP ${res.status}). A API do SpeedTime não foi encontrada neste endereço.`);
+    }
+    throw new ApiError(res.status, data.error ?? `Erro ${res.status}`);
+  }
   return data as T;
 }
 
